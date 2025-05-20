@@ -62,7 +62,7 @@ class GCGConfig:
     verbosity: str = "INFO"
     probe_sampling_config: Optional[ProbeSamplingConfig] = None
     bias_token_id: list = None
-    bias_value: torch.float16 = 1.0
+    bias_value: float = 1.0
 
 
 @dataclass
@@ -535,7 +535,8 @@ class GCG:
                 vocab_size = logits.size(-1)
                 weights = torch.ones(vocab_size, device=logits.device, dtype=logits.dtype)
                 if self.config.bias_token_id is not None :
-                    weights[bias_token_id]  = self.config.bias_value.to(logits.dtype)
+                    bias_tensor = torch.tensor(bias_value)
+                    weights[bias_token_id]  = bias_tensor.to(logits.dtype).to(logits.device)
 
 
 
