@@ -533,9 +533,9 @@ class GCG:
 
                 #Add weight to bias multilingual gradient scaling
                 vocab_size = logits.size(-1)
-                weights = torch.ones(vocab_size, device=logits.device)
+                weights = torch.ones(vocab_size, device=logits.device, dtype=logits.dtype)
                 if self.config.bias_token_id is not None :
-                    weights[bias_token_id]  = self.config.bias_value
+                    weights[bias_token_id]  = self.config.bias_value.to(logits.dtype)
 
 
 
