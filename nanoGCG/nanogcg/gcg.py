@@ -536,7 +536,7 @@ class GCG:
                 weights = torch.ones(vocab_size, device=logits.device, dtype=logits.dtype)
                 if self.config.bias_token_id is not None :
                     bias_tensor = torch.tensor(self.config.bias_value)
-                    weights[bias_token_id]  = bias_tensor.to(logits.dtype).to(logits.device)
+                    weights[self.config.bias_token_id]  = bias_tensor.to(logits.dtype).to(logits.device)
 
 
 
