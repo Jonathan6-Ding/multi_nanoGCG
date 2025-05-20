@@ -62,7 +62,7 @@ class GCGConfig:
     verbosity: str = "INFO"
     probe_sampling_config: Optional[ProbeSamplingConfig] = None
     bias_token_id: list = None
-    bias_value: float = 1.0
+    bias_value: torch.float16 = 1.0
 
 
 @dataclass
