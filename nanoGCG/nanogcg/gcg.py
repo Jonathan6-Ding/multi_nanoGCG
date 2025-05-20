@@ -61,6 +61,8 @@ class GCGConfig:
     seed: int = None
     verbosity: str = "INFO"
     probe_sampling_config: Optional[ProbeSamplingConfig] = None
+    bias_token_id: list = None
+    bias_value: floast = 1
 
 
 @dataclass
@@ -529,11 +531,19 @@ class GCG:
                 shift_logits = logits[..., tmp-1:-1, :].contiguous()
                 shift_labels = self.target_ids.repeat(current_batch_size, 1)
 
+                #Add weight to bias multilingual gradient scaling
+                vocab_size = logits.size(-1)
+                weights = torch.ones(vocab_size, device=logits.device)
+                if self.config.bias_token_id is not None :
+                    weights[bias_token_id]  = self.config.bias_value
+
+
+
                 if self.config.use_mellowmax:
                     label_logits = torch.gather(shift_logits, -1, shift_labels.unsqueeze(-1)).squeeze(-1)
                     loss = mellowmax(-label_logits, alpha=self.config.mellowmax_alpha, dim=-1)
                 else:
-                    loss = torch.nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), reduction="none")
+                    loss = torch.nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), weight=weights, reduction="none")
 
                 loss = loss.view(current_batch_size, -1).mean(dim=-1)
                 all_loss.append(loss)
