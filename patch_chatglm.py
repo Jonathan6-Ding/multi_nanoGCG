@@ -374,16 +374,27 @@ def patch_forward_method(file_path):
         content = f.read()
 
     import re
-    # Regex to find the forward method definition
-    pattern = re.compile(r'def forward\(.*?\):.*?(?=^\s*def |\Z)', re.DOTALL | re.MULTILINE)
+    pattern = re.compile(
+        r'(?:^\s*@.*\n)*^\s*def forward\(.*?\):.*?(?=^\s*def |\Z)',
+        re.DOTALL | re.MULTILINE
+    )
 
-    if not pattern.search(content):
+    matches = list(pattern.finditer(content))
+    print(f"Found {len(matches)} forward method(s)")
+
+    if not matches:
         print("No forward method found!")
         return False
 
-    new_content = pattern.sub(PATCHED_FORWARD, content)
+    # Show preview for confirmation
+    print("Original forward method preview:")
+    print(content[matches[0].start():matches[0].end()][:500])
+
+    # Replace the first forward method
+    new_content = content[:matches[0].start()] + PATCHED_FORWARD + content[matches[0].end():]
 
     backup_path = file_path + ".bak"
+    import shutil
     shutil.copyfile(file_path, backup_path)
     print(f"Backup saved at {backup_path}")
 
