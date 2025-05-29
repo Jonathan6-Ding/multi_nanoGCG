@@ -132,43 +132,44 @@ def find_chatglm_modeling_file():
     print("modeling_chatglm.py not found in cache.")
     return None
 
+import re
+
 def apply_patch(file_path, patch_text):
-    import re
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # This simple patch replaces the forward and get_masks methods
-    # by searching the 'def forward' line and replacing until end of method.
-    # For more robust patching, use patch tool or difflib.
+    # Regex to match original forward method including decorators (non-greedy)
+    forward_pattern = re.compile(r'def forward\(.*?\):.*?(?=def |\Z)', re.DOTALL)
 
-    # Here we just overwrite the entire forward + get_masks methods block
+    # Regex to match original get_masks method
+    get_masks_pattern = re.compile(r'def get_masks\(.*?\):.*?(?=def |\Z)', re.DOTALL)
 
-    pattern = re.compile(
-        r'def forward\(.*?\):.*?return transformer_outputs\n', 
-        re.DOTALL
-    )
+    # Extract new forward and get_masks from patch_text manually
+    # For example, you can define patch_text as a dict of method_name -> new_code:
+    new_forward_code = """<paste your full forward method code here>"""
+    new_get_masks_code = """<paste your full get_masks method code here>"""
 
-    new_forward = patch_text.split('--- modeling_chatglm.py.orig\n')[1].split('+++ modeling_chatglm.py\n')[1]
-    # Strip diff markers
-    new_forward = '\n'.join([line[1:] if line.startswith('+') else line for line in new_forward.splitlines() if line.strip() and not line.startswith('-')])
+    # Replace forward method
+    content, forward_subs = forward_pattern.subn(new_forward_code, content)
+    if forward_subs == 0:
+        print("Warning: original forward method not found.")
 
-    if not pattern.search(content):
-        print("Could not find forward method to patch. Exiting.")
-        return False
+    # Replace get_masks method
+    content, get_masks_subs = get_masks_pattern.subn(new_get_masks_code, content)
+    if get_masks_subs == 0:
+        print("Warning: original get_masks method not found. Adding new one.")
+        # If get_masks not found, append it at the end
+        content += "\n\n" + new_get_masks_code
 
-    content = pattern.sub(new_forward, content)
-
-    # Append get_masks method at the end if needed
-    if 'def get_masks' not in content:
-        content += '\n\n' + new_forward.split('def get_masks')[1]
-
-    backup_path = file_path + '.bak'
-    print(f"Backing up original file to {backup_path}")
+    # Backup original file
+    backup_path = file_path + ".bak"
     shutil.copyfile(file_path, backup_path)
+    print(f"Backup saved to {backup_path}")
 
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(content)
-    print(f"Patch applied successfully to {file_path}")
+    print("Patch applied successfully.")
+
     return True
 
 def main():
