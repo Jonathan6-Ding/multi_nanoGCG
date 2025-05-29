@@ -111,14 +111,25 @@ patch_text = '''
 +        return mask
 '''
 
+import os
+from pathlib import Path
+
 def find_chatglm_modeling_file():
-    import transformers_modules
-    base_dir = transformers_modules.__path__[0]
-    # The path usually looks like:
-    # ~/.cache/huggingface/modules/transformers_modules/THUDM/chatglm-6b/<commit_hash>/modeling_chatglm.py
-    for root, dirs, files in os.walk(base_dir):
-        if 'modeling_chatglm.py' in files:
-            return os.path.join(root, 'modeling_chatglm.py')
+    # Hugging Face cache root - adjust if needed
+    cache_root = Path.home() / ".cache" / "huggingface" / "modules" / "transformers_modules" / "THUDM" / "chatglm-6b"
+
+    if not cache_root.exists():
+        print(f"Cache folder {cache_root} not found!")
+        return None
+
+    # Find 'modeling_chatglm.py' in any subdirectory (usually a commit hash folder)
+    for subdir in cache_root.iterdir():
+        if subdir.is_dir():
+            candidate = subdir / "modeling_chatglm.py"
+            if candidate.exists():
+                return str(candidate)
+
+    print("modeling_chatglm.py not found in cache.")
     return None
 
 def apply_patch(file_path, patch_text):
