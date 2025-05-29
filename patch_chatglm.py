@@ -217,7 +217,96 @@ def find_device_accesses(file_path):
             for var_name in matches:
                 print(f"Line {lineno}: variable '{var_name}' accesses '.device'")
                 print(f"    Code: {line.strip()}")
-                
+import re
+import shutil
+
+def find_unsafe_device_accesses(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    device_pattern = re.compile(r'(\w+)\.device')
+    safe_pattern = re.compile(r'\b(\w+)\.device\s+if\s+\1\s+is\s+not\s+None\s+else')
+
+    unsafe_lines = []
+
+    for lineno, line in enumerate(lines, 1):
+        matches = device_pattern.findall(line)
+        if matches:
+            for var in matches:
+                if not safe_pattern.search(line):
+                    unsafe_lines.append((lineno, var, line.strip()))
+
+    if unsafe_lines:
+        print("Unsafe `.device` accesses found:")
+        for lineno, var, code in unsafe_lines:
+            print(f"Line {lineno}: variable '{var}' accesses '.device' unsafely")
+            print(f"    Code: {code}")
+    else:
+        print("No unsafe `.device` accesses found.")
+
+    return unsafe_lines
+
+def patch_query_layer_device(line):
+    # Replace unsafe `device = query_layer.device` with safe fallback
+    pattern = re.compile(r'device\s*=\s*query_layer\.device')
+    if pattern.search(line):
+        return pattern.sub('device = query_layer.device if query_layer is not None else self.device', line)
+    return line
+
+def add_device_property(content):
+    # Add device property inside the model class if missing
+    # This is a simple heuristic that inserts property after class definition line
+    if 'def device(self):' in content:
+        print("Device property already exists; skipping addition.")
+        return content
+
+    class_pattern = re.compile(r'(class\s+ChatGLMModel\(.*?\):)')
+    match = class_pattern.search(content)
+    if not match:
+        print("Could not find model class declaration; skipping device property addition.")
+        return content
+
+    insert_pos = match.end()
+
+    device_property_code = """
+
+    @property
+    def device(self):
+        try:
+            return next(self.parameters()).device
+        except StopIteration:
+            import torch
+            return torch.device("cpu")
+"""
+
+    new_content = content[:insert_pos] + device_property_code + content[insert_pos:]
+    print("Added device property to the model class.")
+    return new_content
+
+def apply_patches(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    # Backup original file
+    backup_path = file_path + '.bak'
+    shutil.copyfile(file_path, backup_path)
+    print(f"Backup created at {backup_path}")
+
+    # Patch lines one by one
+    new_lines = []
+    for line in lines:
+        line = patch_query_layer_device(line)
+        new_lines.append(line)
+
+    content = ''.join(new_lines)
+    content = add_device_property(content)
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+    print(f"Patching done for {file_path}")
+
+    
 def main():
     file_path = find_chatglm_modeling_file()
     if file_path is None:
@@ -232,6 +321,16 @@ def main():
     if not success2:
         print("Failed to apply device patch.")
     find_device_accesses(file_path)
+    # TODO: set this path to your actual modeling_chatglm.py
+    
+    unsafe = find_unsafe_device_accesses(file_path)
+    if unsafe:
+        print("\nUnsafe device usages found. Proceeding with patch...")
+        apply_patches(file_path)
+    else:
+        print("No unsafe device usages found. No patch needed.")
+
+
 
 if __name__ == "__main__":
     main()
