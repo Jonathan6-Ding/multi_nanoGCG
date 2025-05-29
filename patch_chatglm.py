@@ -171,6 +171,36 @@ def apply_patch(file_path, patch_text):
     print("Patch applied successfully.")
 
     return True
+import re
+
+def patch_device_usage(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Regex to find 'device = input_ids.device' ignoring whitespace
+    pattern = re.compile(r'device\s*=\s*input_ids\.device')
+
+    # Replacement line
+    replacement = 'device = input_ids.device if input_ids is not None else inputs_embeds.device'
+
+    new_content, count = pattern.subn(replacement, content)
+
+    if count == 0:
+        print("No occurrences of 'device = input_ids.device' found.")
+    else:
+        print(f"Patched {count} occurrences of device usage.")
+
+    # Backup original file
+    backup_path = file_path + ".bak"
+    import shutil
+    shutil.copyfile(file_path, backup_path)
+    print(f"Backup saved to {backup_path}")
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+    print(f"File '{file_path}' patched successfully.")
+
+    return True
 
 def main():
     file_path = find_chatglm_modeling_file()
@@ -182,6 +212,9 @@ def main():
     success = apply_patch(file_path, patch_text)
     if not success:
         print("Failed to apply patch.")
+    success2 = patch_device_usage(file_path)
+    if not success2:
+        print("Failed to apply device patch.")
 
 if __name__ == "__main__":
     main()
