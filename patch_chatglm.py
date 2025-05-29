@@ -201,7 +201,23 @@ def patch_device_usage(file_path):
     print(f"File '{file_path}' patched successfully.")
 
     return True
+import re
 
+def find_device_accesses(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+
+    device_access_pattern = re.compile(r'(\w+)\.device')
+
+    print(f"Scanning '{file_path}' for '.device' attribute accesses...\n")
+
+    for lineno, line in enumerate(lines, 1):
+        matches = device_access_pattern.findall(line)
+        if matches:
+            for var_name in matches:
+                print(f"Line {lineno}: variable '{var_name}' accesses '.device'")
+                print(f"    Code: {line.strip()}")
+                
 def main():
     file_path = find_chatglm_modeling_file()
     if file_path is None:
@@ -215,6 +231,7 @@ def main():
     success2 = patch_device_usage(file_path)
     if not success2:
         print("Failed to apply device patch.")
+    find_device_accesses(file_path)
 
 if __name__ == "__main__":
     main()
