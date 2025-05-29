@@ -305,6 +305,94 @@ def apply_patches(file_path):
         f.write(content)
 
     print(f"Patching done for {file_path}")
+import os
+import shutil
+
+PATCHED_FORWARD = '''
+    def forward(
+        self,
+        input_ids=None,
+        position_ids=None,
+        attention_mask=None,
+        past_key_values=None,
+        inputs_embeds=None,
+        use_cache=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+        **kwargs,
+    ):
+        from transformers import GenerationConfig
+        import copy
+
+        if input_ids is None and inputs_embeds is None:
+            raise ValueError("You must specify either input_ids or inputs_embeds")
+
+        generation_config = getattr(self, "generation_config", None)
+        if generation_config is None:
+            generation_config = GenerationConfig()
+
+        # Filter None values from kwargs before updating generation_config
+        filtered_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        generation_config = copy.deepcopy(generation_config)
+        model_kwargs = generation_config.update(**filtered_kwargs)
+
+        if input_ids is not None:
+            batch_size, seq_len = input_ids.shape[:2]
+            device = input_ids.device
+        else:
+            batch_size, seq_len = inputs_embeds.shape[:2]
+            device = inputs_embeds.device
+
+        if position_ids is None:
+            position_ids = torch.arange(seq_len, dtype=torch.long, device=device)
+            position_ids = position_ids.unsqueeze(0).expand(batch_size, -1)
+
+        if attention_mask is None:
+            attention_mask = torch.ones((batch_size, seq_len), dtype=torch.bool, device=device)
+
+        if inputs_embeds is None and input_ids is not None:
+            inputs_embeds = self.get_input_embeddings()(input_ids)
+
+        transformer_outputs = self.transformer(
+            inputs_embeds=inputs_embeds,
+            position_ids=position_ids,
+            attention_mask=attention_mask,
+            past_key_values=past_key_values,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+            **model_kwargs,
+        )
+
+        return transformer_outputs
+'''
+
+def patch_forward_method(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    import re
+    # Regex to find the forward method definition
+    pattern = re.compile(r'def forward\(.*?\):.*?(?=^\s*def |\Z)', re.DOTALL | re.MULTILINE)
+
+    if not pattern.search(content):
+        print("No forward method found!")
+        return False
+
+    new_content = pattern.sub(PATCHED_FORWARD, content)
+
+    backup_path = file_path + ".bak"
+    shutil.copyfile(file_path, backup_path)
+    print(f"Backup saved at {backup_path}")
+
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+    print(f"Patched forward method in {file_path}")
+    return True
+
+
 
     
 def main():
@@ -330,6 +418,7 @@ def main():
     else:
         print("No unsafe device usages found. No patch needed.")
 
+    patch_forward_method(file_path)
 
 
 if __name__ == "__main__":
