@@ -61,8 +61,9 @@ class GCGConfig:
     seed: int = None
     verbosity: str = "INFO"
     probe_sampling_config: Optional[ProbeSamplingConfig] = None
-    bias_token_id: list = None
-    bias_value: float = 1.0
+    scale_factor: float = None
+    #bias_token_id: list = None
+    #bias_value: float = 1.0
 
 
 @dataclass
@@ -496,6 +497,13 @@ class GCG:
 
         optim_ids_onehot_grad = torch.autograd.grad(outputs=[loss], inputs=[optim_ids_onehot])[0]
 
+        if self.config.scale_factor is not None :
+            max_grad = optim_ids_onehot_grad.abs().max().item()
+            if max_grad > 1.0:
+                optim_ids_onehot_grad = optim_ids_onehot_grad * self.config.scale_factor         # Dampen if too large
+            elif max_grad < 0.1:
+                optim_ids_onehot_grad = optim_ids_onehot_grad * (1.0 / self.config.scale_factor)  # Boost if too small
+
         return optim_ids_onehot_grad
 
     def _compute_candidates_loss_original(
@@ -534,11 +542,11 @@ class GCG:
                 shift_labels = self.target_ids.repeat(current_batch_size, 1)
 
                 #Add weight to bias multilingual gradient scaling
-                vocab_size = logits.size(-1)
-                weights = torch.ones(vocab_size, device=logits.device, dtype=logits.dtype)
-                if self.config.bias_token_id is not None :
-                    bias_tensor = torch.tensor(self.config.bias_value)
-                    weights[self.config.bias_token_id]  = bias_tensor.to(logits.dtype).to(logits.device)
+                #vocab_size = logits.size(-1)
+                #weights = torch.ones(vocab_size, device=logits.device, dtype=logits.dtype)
+                #if self.config.bias_token_id is not None :
+                #    bias_tensor = torch.tensor(self.config.bias_value)
+                #    weights[self.config.bias_token_id]  = bias_tensor.to(logits.dtype).to(logits.device)
 
 
 
@@ -546,7 +554,7 @@ class GCG:
                     label_logits = torch.gather(shift_logits, -1, shift_labels.unsqueeze(-1)).squeeze(-1)
                     loss = mellowmax(-label_logits, alpha=self.config.mellowmax_alpha, dim=-1)
                 else:
-                    loss = torch.nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), weight=weights, reduction="none")
+                    loss = torch.nn.functional.cross_entropy(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1), reduction="none")
 
                 loss = loss.view(current_batch_size, -1).mean(dim=-1)
                 all_loss.append(loss)
