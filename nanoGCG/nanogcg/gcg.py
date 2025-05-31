@@ -251,8 +251,11 @@ class GCG:
         # Append the GCG string at the end of the prompt if location not specified
         if not any(["{optim_str}" in d["content"] for d in messages]):
             messages[-1]["content"] = messages[-1]["content"] + "{optim_str}"
-
-        template = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            
+        if (self.model.config.model_type == "qwen3") :
+            template = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, enable_thinking=False)
+        else :
+            template = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         # Remove the BOS token -- this will get added when tokenizing, if necessary
         if tokenizer.bos_token and template.startswith(tokenizer.bos_token):
             template = template.replace(tokenizer.bos_token, "")
