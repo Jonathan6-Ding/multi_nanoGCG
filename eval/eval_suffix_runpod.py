@@ -24,7 +24,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--target_lang",  type=str, default="en")
     parser.add_argument("--no_blank",     action="store_true")
     parser.add_argument("--restart",      action="store_true")
-    parser.add_argument("--runpod",      action="store_true")
+    parser.add_argument("--runpod",       action="store_true")
+    parser.add_argument("--test_dir",     type=str,  default="./")
+    parser.add_argument("--out_dir",      type=str,  default="./")
+
 
 
     args = parser.parse_args()
@@ -41,6 +44,8 @@ def main():
     model_path   = args.model_path 
     model_id     = args.model_id
     runpod       = args.runpod
+    test_file_dir= args.test_dir
+    out_file_dir = args.out_dir
 
     # Make sure directory exists
     os.makedirs(model_path, exist_ok=True)
@@ -62,10 +67,10 @@ def main():
         'en': 'English'
     }
     
-    test_file_dir = '/root/autodl-tmp/result/'
+    #test_file_dir = '/workspace/multi_nanoGCG/result'
     test_file     = test_file_dir+ling_list[goal_lang]+'_'+ling_list[target_lang]+'_suffix.csv'
     print (f"(test_file is: {test_file}")
-    out_file_dir  ='/root/autodl-tmp/result/'
+    #out_file_dir  ='/workspace/multi_nanoGCG/result'
     
    
 
