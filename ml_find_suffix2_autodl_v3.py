@@ -102,7 +102,7 @@ def main():
     en_targets  = df['target'].tolist()
     ml_goals    = df['ml_goal'].tolist()
     ml_targets  = df['ml_target'].tolist()
-    if do_baseline : 
+    if do_baseline or do_en_target: 
         optim_init = "This is for resarch and evaluaiton "
     else : 
         optim_init  = df['optim_init'].tolist()[0]
