@@ -250,8 +250,13 @@ class Model:
 
         if inputs_embeds is None:
             raise ValueError("必须提供inputs_embeds")
+        batch_size, seq_len, _ = inputs_embeds.shape
+        attention_mask = torch.ones((batch_size, seq_len), 
+                                    device=inputs_embeds.device, 
+                                    dtype=torch.long)
 
         return self.model(inputs_embeds=inputs_embeds,
+                          attention_mask=attention_mask, # Added: Pass the generated attention mask
                           past_key_values=past_key_values,
                           use_cache=use_cache)
 
@@ -329,8 +334,10 @@ class GCG:
         # Append the GCG string at the end of the prompt if location not specified
         if not any(["{optim_str}" in d["content"] for d in messages]):
             messages[-1]["content"] = messages[-1]["content"] + "{optim_str}"
-
+            
+        
         template = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        
         # Remove the BOS token -- this will get added when tokenizing, if necessary
         if tokenizer.bos_token and template.startswith(tokenizer.bos_token):
             template = template.replace(tokenizer.bos_token, "")
